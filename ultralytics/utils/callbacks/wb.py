@@ -128,6 +128,11 @@ def on_train_epoch_end(trainer):
         _log_plots(trainer.plots, step=trainer.epoch + 1)
 
 
+def on_train_start(trainer):
+    """Log model architecture at start of training."""
+    model_file = trainer.args.model.replace("yolov8n", "yolov8")
+    wb.run.log_artifact(model_file, type='architecture')
+
 def on_train_end(trainer):
     """Save the best model as an artifact at end of training."""
     _log_plots(trainer.validator.plots, step=trainer.epoch + 1)
@@ -150,13 +155,10 @@ def on_train_end(trainer):
     wb.run.finish()  # required or run continues on dashboard
 
 
-callbacks = (
-    {
-        "on_pretrain_routine_start": on_pretrain_routine_start,
-        "on_train_epoch_end": on_train_epoch_end,
-        "on_fit_epoch_end": on_fit_epoch_end,
-        "on_train_end": on_train_end,
-    }
-    if wb
-    else {}
-)
+callbacks = {
+    'on_pretrain_routine_start': on_pretrain_routine_start,
+    'on_train_epoch_end': on_train_epoch_end,
+    'on_fit_epoch_end': on_fit_epoch_end,
+    'on_train_end': on_train_end,
+    'on_train_start': on_train_start
+} if wb else {}

@@ -837,15 +837,23 @@ class Albumentations:
 
             # Transforms
             T = [
-                A.Blur(p=0.01),
+                A.ImageCompression(quality_lower=10, quality_upper=60, p=0.2),
+                A.HueSaturationValue(p=0.1),
+                A.RGBShift(p=0.1),
+                A.PixelDropout(dropout_prob=0.05, p=0.01),
+                A.ToGray(p=0.01),
+                A.Blur(blur_limit=[2,2], p=0.01),
+                A.RandomSunFlare(src_radius=10, p=0.01),
+                A.RandomShadow(p=0.4),
+                A.GaussNoise(p=0.2, var_limit=50),
                 A.MedianBlur(p=0.01),
                 A.ToGray(p=0.01),
                 A.CLAHE(p=0.01),
-                A.RandomBrightnessContrast(p=0.0),
-                A.RandomGamma(p=0.0),
-                A.ImageCompression(quality_lower=75, p=0.0),
-            ]
-            self.transform = A.Compose(T, bbox_params=A.BboxParams(format="yolo", label_fields=["class_labels"]))
+                A.RandomBrightnessContrast(p=0.01),
+                A.RandomGamma(p=0.01),
+                A.ImageCompression(quality_lower=75, p=0.0)
+            ]  # transforms
+            self.transform = A.Compose(T, bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels']))
 
             LOGGER.info(prefix + ", ".join(f"{x}".replace("always_apply=False, ", "") for x in T if x.p))
         except ImportError:  # package not installed, skip

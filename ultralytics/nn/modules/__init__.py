@@ -40,6 +40,8 @@ from .block import (
     ResNetLayer,
     ContrastiveHead,
     BNContrastiveHead,
+    TimmBackbone,
+    FeatureLayerExtractor
 )
 from .conv import (
     CBAM,
@@ -123,4 +125,6 @@ __all__ = (
     "ImagePoolingAttn",
     "ContrastiveHead",
     "BNContrastiveHead",
+    "TimmBackbone",
+    "FeatureLayerExtractor",
 )

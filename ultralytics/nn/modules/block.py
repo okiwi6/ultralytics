@@ -1,9 +1,12 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
 """Block modules."""
 
+from collections import OrderedDict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+import timm
 
 from .conv import Conv, DWConv, GhostConv, LightConv, RepConv
 from .transformer import TransformerBlock
@@ -67,7 +70,8 @@ class Proto(nn.Module):
         """
         super().__init__()
         self.cv1 = Conv(c1, c_, k=3)
-        self.upsample = nn.ConvTranspose2d(c_, c_, 2, 2, 0, bias=True)  # nn.Upsample(scale_factor=2, mode='nearest')
+        # nn.Upsample(scale_factor=2, mode='nearest')
+        self.upsample = nn.ConvTranspose2d(c_, c_, 2, 2, 0, bias=True)
         self.cv2 = Conv(c_, c_, k=3)
         self.cv3 = Conv(c_, c2)
 
@@ -91,7 +95,8 @@ class HGStem(nn.Module):
         self.stem2b = Conv(cm // 2, cm, 2, 1, 0, act=nn.ReLU())
         self.stem3 = Conv(cm * 2, cm, 3, 2, act=nn.ReLU())
         self.stem4 = Conv(cm, c2, 1, 1, act=nn.ReLU())
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=1, padding=0, ceil_mode=True)
+        self.pool = nn.MaxPool2d(
+            kernel_size=2, stride=1, padding=0, ceil_mode=True)
 
     def forward(self, x):
         """Forward pass of a PPHGNetV2 backbone layer."""
@@ -118,7 +123,8 @@ class HGBlock(nn.Module):
         """Initializes a CSP Bottleneck with 1 convolution using specified input and output channels."""
         super().__init__()
         block = LightConv if lightconv else Conv
-        self.m = nn.ModuleList(block(c1 if i == 0 else cm, cm, k=k, act=act) for i in range(n))
+        self.m = nn.ModuleList(
+            block(c1 if i == 0 else cm, cm, k=k, act=act) for i in range(n))
         self.sc = Conv(c1 + n * cm, c2 // 2, 1, 1, act=act)  # squeeze conv
         self.ec = Conv(c2 // 2, c2, 1, 1, act=act)  # excitation conv
         self.add = shortcut and c1 == c2
@@ -140,7 +146,8 @@ class SPP(nn.Module):
         c_ = c1 // 2  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1)
         self.cv2 = Conv(c_ * (len(k) + 1), c2, 1, 1)
-        self.m = nn.ModuleList([nn.MaxPool2d(kernel_size=x, stride=1, padding=x // 2) for x in k])
+        self.m = nn.ModuleList(
+            [nn.MaxPool2d(kernel_size=x, stride=1, padding=x // 2) for x in k])
 
     def forward(self, x):
         """Forward pass of the SPP layer, performing spatial pyramid pooling."""
@@ -198,7 +205,8 @@ class C2(nn.Module):
         self.cv1 = Conv(c1, 2 * self.c, 1, 1)
         self.cv2 = Conv(2 * self.c, c2, 1)  # optional act=FReLU(c2)
         # self.attention = ChannelAttention(2 * self.c)  # or SpatialAttention()
-        self.m = nn.Sequential(*(Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)), e=1.0) for _ in range(n)))
+        self.m = nn.Sequential(
+            *(Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)), e=1.0) for _ in range(n)))
 
     def forward(self, x):
         """Forward pass through the CSP bottleneck with 2 convolutions."""
@@ -217,7 +225,8 @@ class C2f(nn.Module):
         self.c = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, 2 * self.c, 1, 1)
         self.cv2 = Conv((2 + n) * self.c, c2, 1)  # optional act=FReLU(c2)
-        self.m = nn.ModuleList(Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)), e=1.0) for _ in range(n))
+        self.m = nn.ModuleList(Bottleneck(self.c, self.c, shortcut, g, k=(
+            (3, 3), (3, 3)), e=1.0) for _ in range(n))
 
     def forward(self, x):
         """Forward pass through C2f layer."""
@@ -242,7 +251,8 @@ class C3(nn.Module):
         self.cv1 = Conv(c1, c_, 1, 1)
         self.cv2 = Conv(c1, c_, 1, 1)
         self.cv3 = Conv(2 * c_, c2, 1)  # optional act=FReLU(c2)
-        self.m = nn.Sequential(*(Bottleneck(c_, c_, shortcut, g, k=((1, 1), (3, 3)), e=1.0) for _ in range(n)))
+        self.m = nn.Sequential(
+            *(Bottleneck(c_, c_, shortcut, g, k=((1, 1), (3, 3)), e=1.0) for _ in range(n)))
 
     def forward(self, x):
         """Forward pass through the CSP bottleneck with 2 convolutions."""
@@ -256,7 +266,8 @@ class C3x(C3):
         """Initialize C3TR instance and set default parameters."""
         super().__init__(c1, c2, n, shortcut, g, e)
         self.c_ = int(c2 * e)
-        self.m = nn.Sequential(*(Bottleneck(self.c_, self.c_, shortcut, g, k=((1, 3), (3, 1)), e=1) for _ in range(n)))
+        self.m = nn.Sequential(
+            *(Bottleneck(self.c_, self.c_, shortcut, g, k=((1, 3), (3, 1)), e=1) for _ in range(n)))
 
 
 class RepC3(nn.Module):
@@ -309,7 +320,8 @@ class GhostBottleneck(nn.Module):
             GhostConv(c_, c2, 1, 1, act=False),  # pw-linear
         )
         self.shortcut = (
-            nn.Sequential(DWConv(c1, c1, k, s, act=False), Conv(c1, c2, 1, 1, act=False)) if s == 2 else nn.Identity()
+            nn.Sequential(DWConv(c1, c1, k, s, act=False), Conv(
+                c1, c2, 1, 1, act=False)) if s == 2 else nn.Identity()
         )
 
     def forward(self, x):
@@ -348,7 +360,8 @@ class BottleneckCSP(nn.Module):
         self.cv4 = Conv(2 * c_, c2, 1, 1)
         self.bn = nn.BatchNorm2d(2 * c_)  # applied to cat(cv2, cv3)
         self.act = nn.SiLU()
-        self.m = nn.Sequential(*(Bottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)))
+        self.m = nn.Sequential(
+            *(Bottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)))
 
     def forward(self, x):
         """Applies a CSP bottleneck with 3 convolutions."""
@@ -367,7 +380,8 @@ class ResNetBlock(nn.Module):
         self.cv1 = Conv(c1, c2, k=1, s=1, act=True)
         self.cv2 = Conv(c2, c2, k=3, s=s, p=1, act=True)
         self.cv3 = Conv(c2, c3, k=1, act=False)
-        self.shortcut = nn.Sequential(Conv(c1, c3, k=1, s=s, act=False)) if s != 1 or c1 != c3 else nn.Identity()
+        self.shortcut = nn.Sequential(
+            Conv(c1, c3, k=1, s=s, act=False)) if s != 1 or c1 != c3 else nn.Identity()
 
     def forward(self, x):
         """Forward pass through the ResNet block."""
@@ -384,11 +398,13 @@ class ResNetLayer(nn.Module):
 
         if self.is_first:
             self.layer = nn.Sequential(
-                Conv(c1, c2, k=7, s=2, p=3, act=True), nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+                Conv(c1, c2, k=7, s=2, p=3, act=True), nn.MaxPool2d(
+                    kernel_size=3, stride=2, padding=1)
             )
         else:
             blocks = [ResNetBlock(c1, c2, s, e=e)]
-            blocks.extend([ResNetBlock(e * c2, c2, 1, e=e) for _ in range(n - 1)])
+            blocks.extend([ResNetBlock(e * c2, c2, 1, e=e)
+                          for _ in range(n - 1)])
             self.layer = nn.Sequential(*blocks)
 
     def forward(self, x):
@@ -442,7 +458,8 @@ class C2fAttn(nn.Module):
         self.c = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, 2 * self.c, 1, 1)
         self.cv2 = Conv((3 + n) * self.c, c2, 1)  # optional act=FReLU(c2)
-        self.m = nn.ModuleList(Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)), e=1.0) for _ in range(n))
+        self.m = nn.ModuleList(Bottleneck(self.c, self.c, shortcut, g, k=(
+            (3, 3), (3, 3)), e=1.0) for _ in range(n))
         self.attn = MaxSigmoidAttnBlock(self.c, self.c, gc=gc, ec=ec, nh=nh)
 
     def forward(self, x, guide):
@@ -472,9 +489,12 @@ class ImagePoolingAttn(nn.Module):
         self.key = nn.Sequential(nn.LayerNorm(ec), nn.Linear(ec, ec))
         self.value = nn.Sequential(nn.LayerNorm(ec), nn.Linear(ec, ec))
         self.proj = nn.Linear(ec, ct)
-        self.scale = nn.Parameter(torch.tensor([0.0]), requires_grad=True) if scale else 1.0
-        self.projections = nn.ModuleList([nn.Conv2d(in_channels, ec, kernel_size=1) for in_channels in ch])
-        self.im_pools = nn.ModuleList([nn.AdaptiveMaxPool2d((k, k)) for _ in range(nf)])
+        self.scale = nn.Parameter(torch.tensor(
+            [0.0]), requires_grad=True) if scale else 1.0
+        self.projections = nn.ModuleList(
+            [nn.Conv2d(in_channels, ec, kernel_size=1) for in_channels in ch])
+        self.im_pools = nn.ModuleList(
+            [nn.AdaptiveMaxPool2d((k, k)) for _ in range(nf)])
         self.ec = ec
         self.nh = nh
         self.nf = nf
@@ -486,7 +506,8 @@ class ImagePoolingAttn(nn.Module):
         bs = x[0].shape[0]
         assert len(x) == self.nf
         num_patches = self.k**2
-        x = [pool(proj(x)).view(bs, -1, num_patches) for (x, proj, pool) in zip(x, self.projections, self.im_pools)]
+        x = [pool(proj(x)).view(bs, -1, num_patches)
+             for (x, proj, pool) in zip(x, self.projections, self.im_pools)]
         x = torch.cat(x, dim=-1).transpose(1, 2)
         q = self.query(text)
         k = self.key(x)
@@ -515,7 +536,8 @@ class ContrastiveHead(nn.Module):
         """Initializes ContrastiveHead with specified region-text similarity parameters."""
         super().__init__()
         self.bias = nn.Parameter(torch.zeros([]))
-        self.logit_scale = nn.Parameter(torch.ones([]) * torch.tensor(1 / 0.07).log())
+        self.logit_scale = nn.Parameter(
+            torch.ones([]) * torch.tensor(1 / 0.07).log())
 
     def forward(self, x, w):
         """Forward function of contrastive learning."""
@@ -548,3 +570,35 @@ class BNContrastiveHead(nn.Module):
         w = F.normalize(w, dim=-1, p=2)
         x = torch.einsum("bchw,bkc->bkhw", x, w)
         return x * self.logit_scale.exp() + self.bias
+
+
+class PixelUnshuffle(nn.Module):
+    def __init__(self, scale_factor: int, input_channels: int):
+        super().__init__()
+        self.scale_factor = scale_factor
+        self.output_channel = input_channels // (scale_factor ** 2)
+        assert (self.output_channel * scale_factor ** 2 == input_channels)
+        self.shuffle = nn.PixelShuffle(scale_factor)
+
+    def forward(self, x):
+        return self.shuffle(x)
+
+
+class TimmBackbone(nn.Module):
+    def __init__(self, variant: str):
+        super().__init__()
+        self.model = timm.create_model(
+            variant, pretrained=True, features_only=True)
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class FeatureLayerExtractor(nn.Module):
+    def __init__(self, feature_index: int, output_channel: int):
+        super().__init__()
+        self.feature_index = feature_index
+        self.output_channel = output_channel
+
+    def forward(self, x: OrderedDict) -> torch.Tensor:
+        return x[self.feature_index]

@@ -166,7 +166,9 @@ class Exporter:
     @smart_inference_mode()
     def __call__(self, model=None):
         """Returns list of exported files/dirs after running callbacks."""
-        self.run_callbacks("on_export_start")
+        self.run_callbacks('on_export_start')
+        print("Exporting ...")
+        model.prepare_export()
         t = time.time()
         fmt = self.args.format.lower()  # to lowercase
         if fmt in ("tensorrt", "trt"):  # 'engine' aliases

@@ -8,16 +8,16 @@ from ultralytics.engine.trainer import BaseTrainer
 from ultralytics.engine.validator import BaseValidator
 
 
-def f1_from_validator(validator: BaseValidator):
-    stats = validator.metrics.results_dict
+def f1_from_metrics(metrics):
+    stats = metrics.results_dict
     recall = stats['metrics/recall(B)']
     precision = stats['metrics/precision(B)']
 
     return 2 * (precision * recall) / (precision + recall)
 
 
-def epoch_callback(trainer: BaseTrainer, trial: optuna.Trial):
-    f1_score = f1_from_validator(trainer.validator)
+def epoch_callback(validator: BaseValidator, trial: optuna.Trial, trainer: BaseTrainer):
+    f1_score = f1_from_metrics(validator.metrics)
 
     trial.report(f1_score, trainer.epoch)
 
@@ -36,12 +36,14 @@ def generate_hyperparameters(trial: optuna.Trial):
         "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.001),
     }
 
+def register_callbacks(trainer: BaseTrainer, trial: optuna.Trial):
+    print("Registering callbacks")
+    trainer.validator.add_callback("on_val_epoch_end", lambda validator: epoch_callback(validator, trial, trainer))
 
 def main(trial: optuna.Trial):
     # Load a YOLOv8n model
     model = YOLO(Path('yolov8n-mobilenet.yaml').absolute())
-    model.add_callback("on_fit_epoch_end",
-                       lambda trainer: epoch_callback(trainer, trial))
+    model.add_callback("on_pretrain_routine_end", lambda trainer: register_callbacks(trainer, trial))
 
     hyperparameters = generate_hyperparameters(trial)
 
@@ -58,20 +60,22 @@ def main(trial: optuna.Trial):
         lrf=hyperparameters["lrf"],
         momentum=hyperparameters["momentum"],
         weight_decay=hyperparameters["weight_decay"],
-        # device=[0, 1],
+        device=[0,1],
         epochs=200,
     )
 
-    return f1_from_validator(model.trainer.validator)
+    metrics = model.val(
+        data=str(Path('robot-detection.yaml').absolute()),
+        imgsz=hyperparameters["imgsz"],
+        batch=256,
+    )
+
+    return f1_from_metrics(metrics)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        study_name = "yolo-tune-playground"
-        storage = None
-    else:
-        study_name = sys.argv[1]
-        storage = f"sqlite:///{sys.argv[2]}"
+    study_name = sys.argv[1]
+    storage = f"sqlite:///{sys.argv[2]}"
 
     study = optuna.create_study(
         study_name=study_name,
