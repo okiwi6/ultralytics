@@ -167,10 +167,6 @@ class BaseTrainer:
 
     def run_callbacks(self, event: str):
         """Run all existing callbacks associated with a particular event."""
-        if event == "on_train_validation_end":
-            import inspect
-            print(self.callbacks.keys())
-
         for callback in self.callbacks.get(event, []):
             callback(self)
 
@@ -435,8 +431,6 @@ class BaseTrainer:
                 if self.args.save or final_epoch:
                     self.save_model()
                     self.run_callbacks("on_model_save")
-
-                self.run_callbacks('on_train_validation_end')
 
             # Scheduler
             t = time.time()
