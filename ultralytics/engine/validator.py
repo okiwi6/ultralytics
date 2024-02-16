@@ -191,7 +191,7 @@ class BaseValidator:
 
             self.run_callbacks("on_val_batch_end")
         stats = self.get_stats()
-        print(colorstr(f"Fitness: {stats["fitness"]}"))
+        print(colorstr(f"Fitness: {stats['fitness']}"))
         
         self.check_stats(stats)
         self.speed = dict(zip(self.speed.keys(), (x.t / len(self.dataloader.dataset) * 1e3 for x in dt)))
