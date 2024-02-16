@@ -743,8 +743,7 @@ class Metric(SimpleClass):
 
     def fitness(self):
         """Model fitness as a weighted combination of metrics."""
-        w = [0.0, 0.0, 0.1, 0.9]  # weights for [P, R, mAP@0.5, mAP@0.5:0.95]
-        return (np.array(self.mean_results()) * w).sum()
+        return (2 * self.mp * self.mr) / (self.mp + self.mr) * 0.7 + self.map50 * 0.3
 
     def update(self, results):
         """
