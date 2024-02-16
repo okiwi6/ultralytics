@@ -973,6 +973,25 @@ class Format:
 
         return masks, instances, cls
 
+class RGBToYCbCr:
+    """Converts RGB image to YCbCr format."""
+
+    def __init__(
+        self,
+    ):
+        """Initializes the RGBToYCbCr object."""
+        pass
+
+    def __call__(self, labels):
+        """Converts RGB image to YCbCr format."""
+        img = labels["img"]
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
+        # switch Cr and Cb channels
+        assert(img.shape[2] == 3 and img.ndim == 3)
+        img = img[:, :, [0, 2, 1]]
+        labels["img"] = img
+        return labels
+
 
 def v8_transforms(dataset, imgsz, hyp, stretch=False):
     """Convert images to a size suitable for YOLOv8 training."""
