@@ -1,0 +1,13 @@
+path: ''
+train: 'datasets/train.txt'
+val: 'datasets/val.txt'
+test: 'datasets/test.txt'
+ 
+nc: 1
+
+# class names
+names: 
+  0: 'robot'
+  # 1: 'robot'
+  # 2: 'goal_post'
+  # 3: 'pen_spot'
