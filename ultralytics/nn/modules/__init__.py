@@ -41,7 +41,8 @@ from .block import (
     ContrastiveHead,
     BNContrastiveHead,
     TimmBackbone,
-    FeatureLayerExtractor
+    FeatureLayerExtractor,
+    PixelUnshuffle,
 )
 from .conv import (
     CBAM,
@@ -127,4 +128,5 @@ __all__ = (
     "BNContrastiveHead",
     "TimmBackbone",
     "FeatureLayerExtractor",
+    "PixelUnshuffle",
 )
